@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>Hangman</title>
+	<meta charset="UTF-8">
+	<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+	<link rel="manifest" href="manifest.json">
+	<link rel="mask-icon" href="safari-pinned-tab.svg" color="#5bbad5">
+	<meta name="apple-mobile-web-app-title" content="Hangman">
+	<meta name="application-name" content="Hangman">
+	<meta name="theme-color" content="#ffffff">
+	<!-- Reset.css -->
+	<link rel="stylesheet" type="text/css" href="assets/css/reset.css">
+	<!-- Bootstrap.css -->
+	<link rel="stylesheet" 
+		href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" 
+		integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" 
+		crossorigin="anonymous">
+	<!-- Style.css -->
+ 	<link rel="stylesheet" type="text/css" href="assets/css/style.css">
+	<!-- jQuery.js -->
+	<script
+		src="https://code.jquery.com/jquery-3.2.1.js" 
+		integrity="sha256-DZAnKJ/6XZ9si04Hgrsxu/8s717jcIzLy3oi35EouyE=" 
+		crossorigin="anonymous">
+	</script>
+	<!-- Popper.js - ?REMOVE?-->
+	<script 
+		src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js" 
+		integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" 
+		crossorigin="anonymous">
+	</script>
+	<!-- Matter.js -->
+	<script 
+		src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.12.0/matter.min.js" 
+		integrity="sha256-GQ/EXCtgm5znp+9sMkxLemLWgG9LGm/0bUukna4urn4=" 
+		crossorigin="anonymous">
+	</script>
+	<!-- P5.js -->
+	<script 
+		src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.16/p5.js" 
+		integrity="sha256-3t7gpD+/xy+brxk55l3wYgACIRGG28aPU1F2hWt5oOM=" 
+		crossorigin="anonymous">
+	</script>
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+</head>
+<body>
+	<div class="container">
+		<nav class="navbar navbar-expand-lg navbar-light bg-light">
+				<a class="navbar-brand" href="#"><h1>Mark Pederson</h1></a>
+				<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+					<span class="navbar-toggler-icon"></span>
+				</button>
+				<div class="collapse navbar-collapse" id="navbarNavDropdown">
+					<ul class="navbar-nav">
+						<li class="nav-item">
+							<a class="nav-link" href="#">Home</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link" href="#">Features</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link" href="#">Pricing</a>
+						</li>
+						<li class="nav-item dropdown">
+							<a class="nav-link dropdown-toggle active" href="http://example.com" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Portfolio</a>
+							<div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+								<a class="dropdown-item" href="#">Hangman<span class="sr-only">(current)</span></a>
+								<a class="dropdown-item" href="#">Another action</a>
+								<a class="dropdown-item" href="#">Something else here</a>
+							</div>
+						</li>
+					</ul>
+				</div>
+			</nav>
+	</div>
+
+	<button id="Retry">Retry</button>
+
+	<script type="text/javascript">
+
+
+		// Array for all word values obtained from CSV
+		var dataArr = new Array;
+		// Word object; word string not stored in memory
+		var word = new Object;
+
+		// Word constructor requiring global access to dataArr and desired index
+		function getWord(i){
+			word = {
+				index: i,
+				string: function() { return dataArr[i].trim(); },
+				points: function() { return Math.ceil(i / dataArr.length * 10); },
+				vowels: function() { return (dataArr[i].trim().match(/[aeiouy]/gi) || []).length; },
+				// Object where key = letter: value = occurence; .length = number of unique letters
+				letters: function() {
+					var ret = {},
+							str = dataArr[i].trim(),
+							len = str.length;
+					str = str.split('').reverse();
+					while (len--) {ret[str[len]] = ret[str[len]] + 1 || 1};
+					return ret;
+/*					function length() {
+						var size = 0;
+						for (key in ret) {
+							if (ret.hasOwnProperty(key)) {size++};
+						}
+						return size;
+					}*/
+				}
+			};
+		}
+		function getRandItem(){
+
+			return Math.floor(Math.random() * dataArr.length);
+		}
+		
+		function loadFile(url){
+			$.get(url, function(file, status){
+				dataArr = file.split("\n");
+				getWord(getRandItem());
+			});
+		};
+
+		function loadCanvas(){
+
+		}
+		$("#Retry").click(function () {
+			getWord(getRandItem());
+		});
+
+		$(document).ready(function () {
+			loadFile("/assets/misc/en_full.csv");
+			loadCanvas();
+		});
+
+	</script>
+</body>
+</html>
