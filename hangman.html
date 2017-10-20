@@ -16,29 +16,32 @@
 	<!-- Bootstrap.css -->
 	<link rel="stylesheet" 
 		href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" 
-		integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" 
-		crossorigin="anonymous">
+		integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
 	<!-- Style.css -->
  	<link rel="stylesheet" type="text/css" href="assets/css/style.css">
 	<!-- jQuery.js -->
 	<script
 		src="https://code.jquery.com/jquery-3.2.1.js" 
-		integrity="sha256-DZAnKJ/6XZ9si04Hgrsxu/8s717jcIzLy3oi35EouyE=" 
-		crossorigin="anonymous">
+		integrity="sha256-DZAnKJ/6XZ9si04Hgrsxu/8s717jcIzLy3oi35EouyE=" crossorigin="anonymous">
 	</script>
 	<!-- Popper.js - ?REMOVE?-->
 	<script 
 		src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js" 
-		integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" 
-		crossorigin="anonymous">
+		integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" crossorigin="anonymous">
 	</script>
-	<!-- Matter.js -->
+	<!-- Matter.js: 2D physics engine -->
 	<script 
 		src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.12.0/matter.min.js" 
-		integrity="sha256-GQ/EXCtgm5znp+9sMkxLemLWgG9LGm/0bUukna4urn4=" 
-		crossorigin="anonymous">
+		integrity="sha256-GQ/EXCtgm5znp+9sMkxLemLWgG9LGm/0bUukna4urn4=" crossorigin="anonymous">
 	</script>
-	<!-- P5.js -->
+	<!-- Pathseg.js: SVGPathSeg API polyfill -->
+	<script src="assets/js/pathseg.js"></script>
+<!-- 	Snap.js
+<script 
+	src="https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.5.1/snap.svg-min.js" 
+	integrity="sha256-oI+elz+sIm+jpn8F/qEspKoKveTc5uKeFHNNVexe6d8=" crossorigin="anonymous">
+</script> -->
+	<!-- P5.js - ?REMOVE?-->
 	<script 
 		src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.16/p5.js" 
 		integrity="sha256-3t7gpD+/xy+brxk55l3wYgACIRGG28aPU1F2hWt5oOM=" 
@@ -78,6 +81,7 @@
 	</div>
 
 	<button id="Retry">Retry</button>
+	<button id="Hint">Hint</button>
 
 	<script type="text/javascript">
 
@@ -125,10 +129,421 @@
 		};
 
 		function loadCanvas(){
+			// var w = $(window).width() * window.devicePixelRatio;
+// var h = $(window).height() * window.devicePixelRatio;
 
+var w = $(window).width();
+var h = $(window).height();
+
+// Matter.js module aliases
+var Engine = Matter.Engine;
+var World = Matter.World;
+var Bodies = Matter.Bodies;
+var Body = Matter.Body;
+var Constraint = Matter.Constraint;
+var Common = Matter.Common;
+var Composite = Matter.Composite;
+var Composites = Matter.Composites;
+var MouseConstraint = Matter.MouseConstraint;
+var Svg = Matter.Svg;
+var Vertices = Matter.Vertices;
+
+// create a Matter.js engine
+var engine = Engine.create({
+	render: {
+		element: document.body,
+		options: {
+			width: w,
+			height: h,
+			background: 'white',
+			pixelRatio: 1,
+			wireframeBackground: '#222',
+			hasBounds: false,
+			enabled: true,
+			wireframes: false,
+			showSleeping: true,
+			showDebug: false,
+			showBroadphase: false,
+			showBounds: false,
+			showVelocity: false,
+			showCollisions: false,
+			showSeparations: false,
+			showAxes: false,
+			showPositions: false,
+			showAngleIndicator: true,
+			showIds: false,
+			showShadows: false,
+			showVertexNumbers: false,
+			showConvexHulls: false,
+			showInternalEdges: false,
+			showMousePosition: false
 		}
+	}
+});
+
+// Add a mouse controlled constraint
+var mouseConstraint = MouseConstraint.create(engine, {restitution: 0});
+World.add(engine.world, mouseConstraint);
+
+var addToWorld = [];
+var prevPoly;
+
+// Create attachment point
+var beamDim = 15;
+var base = Bodies.rectangle($(window).width()/2, beamDim, beamDim, beamDim, {
+	render: {
+		fillStyle: '#000',
+		strokeStyle: '#000',
+		lineWidth: 2
+	},
+	density: Math.random() * 0.1,
+	isStatic: true,
+	restitution: Math.random() * 1,
+	collisionFilter: {
+		category: 0x0001,
+		group: 1
+	}
+});
+
+// Horizontal beam
+var horLen = 200;
+var horX = base.position.x+(horLen-beamDim)/2
+var horizontal = Bodies.rectangle(horX, beamDim/2, horLen, beamDim, {
+	render: {
+		fillStyle: '#000',
+		strokeStyle: '#000',
+		lineWidth: 2
+	},
+	density: Math.random() * 0.1,
+	isStatic: true,
+	restitution: Math.random() * 1
+});
+addToWorld.push(horizontal);
+
+// Vertical beam
+var verHt = 400;
+var vertical = Bodies.rectangle(horizontal.bounds.max.x-beamDim/2, (beamDim+verHt)/2, beamDim, verHt, {
+	render: {
+		fillStyle: '#000',
+		strokeStyle: '#000',
+		lineWidth: 2
+	},
+	density: Math.random() * 0.1,
+	isStatic: true,
+	restitution: Math.random() * 1
+});
+addToWorld.push(vertical);
+
+// Support beam
+const sin45 = Math.sqrt(2)/2;
+var supLen = horLen*sin45;	// Support length
+var support = Bodies.rectangle(horizontal.position.x+supLen/4+beamDim/2, horizontal.position.y+supLen/4, beamDim, supLen, {
+	render: {
+		fillStyle: '#000',
+		strokeStyle: '#000',
+		lineWidth: 2
+	},
+	density: Math.random() * 0.1,
+	isStatic: true,
+	restitution: Math.random() * 1,
+	angle: -45*Math.PI/180
+});
+addToWorld.push(support);
+
+// Create chain
+var group = Body.nextGroup(true);
+
+var rows = 8;
+var columns = 1;
+var columnGap = 10;
+var rowGap = 0;
+
+var rope = Composites.stack(base.position.x, base.bounds.max.y, columns, rows, columnGap, rowGap, function(x, y) {
+		return Bodies.rectangle(x, y, 3, 3, {
+			collisionFilter: {
+				group: group
+			},
+			render: {
+				fillStyle: 'black',
+				strokeStyle: 'black',
+				lineWidth: 0
+			}
+		});
+});
+Composites.chain(rope, 0, 0, 0, 0, {
+		stiffness: 0.8,
+		length: 15,
+		render: {
+				fillStyle: 'black',
+				strokeStyle: 'black',
+				lineWidth: 5
+			}
+});
+base.collisionFilter.group = group;
+/*base.collisionFilter.group = group;*/
+
+// Rope to static position
+var baseConstraint = Constraint.create({
+	bodyA: base,
+	bodyB: rope.bodies[0],
+	render: {
+		fillStyle: 'black',
+		strokeStyle: 'black',
+		lineWidth: 7
+	},
+	stiffness: 0
+});
+
+addToWorld.push(rope);
+addToWorld.push(baseConstraint);
+
+// head
+var circlex = $(window).width()/2-10;
+var circley = rope.bodies[rope.bodies.length-1].position.y+20;
+
+var anchor = Bodies.circle(circlex, circley, 20, {
+	collisionFilter: {group: -1},
+	render: {
+		fillStyle: 'black',
+		strokeStyle: 'black',
+		lineWidth: 2,
+		airFriction: 1
+	},
+
+});
+
+// Noose
+var connectC = Constraint.create({
+		bodyA: rope.bodies[rope.bodies.length-1],
+		bodyB: anchor,
+		pointB: {x: 0, y:15},
+		render: {
+			fillStyle: 'black',
+			strokeStyle: 'black',
+			lineWidth: 10
+		}
+	});
+
+addToWorld.push(connectC);
+addToWorld.push(anchor);
+
+// Torso
+var torso = Bodies.rectangle(anchor.position.x, anchor.position.y+60, 40, 100, {
+	collisionFilter: {group: 1},
+	render: {
+			fillStyle: 'black',
+			strokeStyle: 'black',
+			lineWidth: 2
+		}
+});
+
+// Neck
+var neck = Constraint.create({
+	bodyA: torso,
+	pointA: {x: 0, y:-50},
+	bodyB: anchor,
+	pointB: {x: 0, y:15},
+	render: {
+		strokeStyle: 'black',
+		lineWidth: 20
+	},
+	restitution: 0.4
+});
+
+addToWorld.push(neck);
+addToWorld.push(torso);
+
+// Leg properties
+var legWidth = 19;
+var legRadius = legWidth/2;
+var legLen = 60+legRadius;
+
+// Right lower leg
+var rightLeg = Bodies.rectangle(torso.position.x+20, torso.position.y+120, 17, legLen, {
+	collisionFilter: {group: -1},
+	chamfer: {
+		radius: [legRadius, legRadius, legRadius, legRadius]
+	},
+	render: {
+		fillStyle: 'black',
+		strokeStyle: 'black',
+		lineWidth: 2
+	},
+	restitution: 0.2
+});
+
+// Right upper leg
+var rightHip = Constraint.create({
+	bodyA: rightLeg,
+	pointA: {x: 0, y: -(25-legRadius/4)},
+	bodyB: torso,
+	pointB: {x: 12, y: 40},
+	render: {
+		strokeStyle: 'black',
+		lineWidth: 19
+	},
+	restitution: 0
+});
+
+addToWorld.push(rightLeg);
+addToWorld.push(rightHip);
+
+// Left lower leg
+var leftLeg = Bodies.rectangle(torso.position.x-20, torso.position.y+120, 17, legLen, {
+	collisionFilter: {group: -1},
+	chamfer: {
+		radius: [legRadius, legRadius, legRadius, legRadius]
+	},
+	render: {
+		fillStyle: 'black',
+		strokeStyle: 'black',
+		lineWidth: 2
+	},
+	restitution: 0.2
+});
+
+// Left upper leg
+var leftHip = Constraint.create({
+	bodyA: leftLeg,
+	pointA: {x: 0, y: -(25-legRadius/4)},
+	bodyB: torso,
+	pointB: {x: -12, y: 40},
+	render: {
+		strokeStyle: 'black',
+		lineWidth: 19
+	},
+	restitution: 0
+});
+
+addToWorld.push(leftLeg);
+addToWorld.push(leftHip);
+
+// Arm properties
+var armWidth = 15;
+var armRadius = armWidth/2;
+var armLen = 50+armRadius;
+
+// Right lower arm
+var rightArm = Bodies.rectangle(torso.position.x + 25, torso.position.y + 17, armWidth, armLen, {
+	collisionFilter: {group: 1},
+	chamfer: {
+		radius: [armRadius, armRadius, armRadius, armRadius]
+	},
+	render: {
+		fillStyle: 'black',
+		strokeStyle: 'black',
+		lineWidth: 2
+	},
+	restitution: 0.2
+});
+
+// right upper arm
+var rightShoulder = Constraint.create({
+	bodyA: torso,
+	pointA: {x: 15, y: -49},
+	bodyB: rightArm,
+	pointB: {x: 0, y: -(20-armRadius/4)},
+	render: {
+		strokeStyle: 'black',
+		lineWidth: 18
+	},
+	restitution: 0.5
+});
+
+addToWorld.push(rightArm);
+addToWorld.push(rightShoulder);
+
+// Left lower arm
+var leftArm = Bodies.rectangle(torso.position.x - 25, torso.position.y + 17, armWidth, armLen, {
+	collisionFilter: {group: 1},
+	chamfer: {
+		radius: [armRadius, armRadius, armRadius, armRadius]
+	},
+	render: {
+		fillStyle: 'black',
+		strokeStyle: 'black',
+		lineWidth: 2
+	},
+	restitution: 0.2
+});
+
+// Left upper arm
+var leftShoulder = Constraint.create({
+	bodyA: torso,
+	pointA: {x: -15, y: -49},
+	bodyB: leftArm,
+	pointB: {x: 0, y: -(20-armRadius/4)},
+	render: {
+		strokeStyle: 'black',
+		lineWidth: 18
+	},
+	restitution: 0.5
+});
+
+addToWorld.push(leftArm);
+addToWorld.push(leftShoulder);
+
+// turn gravity off
+engine.world.gravity.y = 2;
+engine.world.gravity.x = 0.15;
+
+// add all of the bodies to the world
+World.add(engine.world, addToWorld);
+
+// run the engine
+runner = Engine.run(engine);
+
+// Create swaying motion
+window.setInterval(function() {
+	engine.world.gravity.x *= -0.95;
+}, 1500);
+
+// 	
+function addLetter(char) {
+	var svgLetter;
+	alert("assets/img/chars/"+char+".svg");
+	$.get("assets/img/chars/"+char+".svg").done(function(data){
+		var vertexSets = [];
+		var color = Common.choose(['#556270', '#4ECDC4', '#C7F464', '#FF6B6B', '#C44D58']);
+		$(data).find('path').each(function(i, path) {
+			var points = Svg.pathToVertices(path, 30);
+			vertexSets.push(Vertices.scale(points, 0.4, 0.4));
+		});
+		var i = 1
+		svgLetter = Bodies.fromVertices(100 + i * 150, 200 + i * 50, vertexSets, {
+			render: {
+				fillStyle: color,
+				strokeStyle: color,
+				lineWidth: 1
+			}
+		});
+	});
+	World.add(engine.world, svgLetter);
+	Engine.update(engine);
+}
+
+// Keyboard input
+document.body.addEventListener("keyup", function(e) {
+	var char = e.key.toUpperCase().charCodeAt(0);
+	// Validate input
+	if (char >= 65 && char <= 90 && e.key.length == 1){
+		addLetter(e.key.toUpperCase());
+	}
+});
+		}
+
 		$("#Retry").click(function () {
 			getWord(getRandItem());
+		});
+
+		$("#Hint").click(function () {
+			var xhr = new XMLHttpRequest();
+			xhr.open('GET', "https://od-api.oxforddictionaries.com/api/v1/entries/en/mislocate", true);
+			xhr.setRequestHeader("Accept", "application/json");
+			xhr.setRequestHeader("app_id", "d56ef468");
+			xhr.setRequestHeader("app_key", "ebc584a10c83e1dfdb4aa3b59a34d9eb");
+			xhr.setRequestHeader('Access-Control-Allow-Origin','*');
+			xhr.send(null);
 		});
 
 		$(document).ready(function () {
